@@ -409,7 +409,6 @@
             <button type="button" class="ghost" id="restartBtn">Plan neu erstellen</button>
 
             <div class="toolbar">
-			<button type="button" class="warn" id="rerollBtn">🔁 Neu generieren</button>
               <button type="button" class="success" id="exportPdfBtn" onclick="window.print()">Als PDF exportieren</button>
               <button type="button" class="success" id="exportCsvBtn">
   Konfiguration als CSV exportieren
@@ -2163,8 +2162,7 @@ return canDay && notBlocked && roleAllowed && notUsedYet && noConflict;
             );
           assignFair(events);
           renderPlan();
-          if (!window.isReroll) {
-  savePlanToHistory();
+          savePlanToHistory();
         }
 
         /* --- Aktuellen sichtbaren Schritt ermitteln --- */
@@ -2595,64 +2593,29 @@ document.getElementById('importProfileCsv')?.addEventListener('change', e => {
         }
 
         /* PNG-Export */
-const pngBtn = el('exportPngBtn');
-el('exportCsvBtn')?.addEventListener('click', exportConfigAsCsv);
-
-/* Neuer Button: Plan neu erstellen */
-el('restartBtn').addEventListener('click', () => {
-  const h = document.querySelector('header');
-  if (h) h.style.display = '';
-  el('result').classList.add('hidden');
-  el('step1').classList.remove('hidden');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-});
-
-if (pngBtn && typeof html2canvas === 'function') {
-  pngBtn.addEventListener('click', () => {
-    const target = el('resultCards');
-    if (!target) return;
-
-    html2canvas(target, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      windowWidth: document.documentElement.scrollWidth,
-      windowHeight: document.documentElement.scrollHeight
-    })
-      .then(canvas => {
-        const link = document.createElement('a');
-
-        const profileName = getCurrentProfileName() || 'profil';
-        const safeName = profileName
-          .replace(/[^a-z0-9]/gi, '_')
-          .toLowerCase();
-
-        const today = new Date().toISOString().slice(0, 10);
-
-        link.download = `plan_${safeName}_${today}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      })
-      .catch(err => {
-        console.error('Fehler beim PNG-Export:', err);
-        alert('Beim PNG-Export ist ein Fehler aufgetreten.');
-      });
-  });
-} else {
-  console.warn('PNG-Export nicht verfügbar');
-}
-
-
-/* 🔁 Neu generieren Button — HIER HIN (WICHTIG!) */
-el('rerollBtn')?.addEventListener('click', () => {
-  try {
-    window.isReroll = true;
-    generatePlan();
-    window.isReroll = false;
-  } catch (e) {
-    console.error(e);
-    alert('Fehler beim Neu generieren');
-  }
-});
+        const pngBtn = el('exportPngBtn');
+		el('exportCsvBtn')?.addEventListener('click', exportConfigAsCsv);
+        /* Neuer Button: Plan neu erstellen */
+        el('restartBtn').addEventListener('click', () => {
+          const h = document.querySelector('header');
+          if (h) h.style.display = '';
+          el('result').classList.add('hidden');
+          el('step1').classList.remove('hidden');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        if (pngBtn && typeof html2canvas === 'function') {
+          pngBtn.addEventListener('click', () => {
+            const target = el('resultCards');
+            if (!target) return;
+            html2canvas(target, {
+              scale: 2,
+              backgroundColor: '#ffffff',
+              windowWidth: document.documentElement.scrollWidth,
+              windowHeight: document.documentElement.scrollHeight
+            })
+              .then(canvas => {
+                const link = document.createElement('a');
+                const profileName = getCurrentProfileName() || 'profil';
 
 const safeName = profileName
   .replace(/[^a-z0-9]/gi, '_')
