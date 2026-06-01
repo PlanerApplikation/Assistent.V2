@@ -347,6 +347,20 @@
   <div class="small muted">
     Diese Personen werden niemals gemeinsam an einem Termin eingeplant.
   </div>
+  <div class="card stack">
+  <label><strong>Bevorzugtregeln</strong></label>
+  <div class="small muted">
+    Diese Personen werden – wenn möglich – gemeinsam eingeplant.
+  </div>
+  <div class="row">
+    <select id="prefPersonA"></select>
+    <select id="prefPersonB"></select>
+    <button type="button" class="primary" id="addPrefBtn">
+      Bevorzugung hinzufügen
+    </button>
+  </div>
+  <div id="preferenceList" class="list"></div>
+</div>
   <div class="row">
     <select id="conflictPersonA"></select>
     <select id="conflictPersonB"></select>
@@ -463,6 +477,8 @@
         let avail = {};
         let currentPlan = [];
 		let conflicts = [];
+		let preferences = [];
+// [{ a: personId, b: personId }]
 // [{ a: personId, b: personId }]
         let csvNames = [];
         let topicCatalog = [];
@@ -600,6 +616,7 @@ function importConfigFromCsv(file) {
             lsSet('persons', JSON.stringify(st.persons));
             lsSet('avail', JSON.stringify(st.avail));
 			lsSet('conflicts', JSON.stringify(conflicts));
+			lsSet('preferences', JSON.stringify(preferences));
           } catch (e) {
             console.warn('Fehler beim Speichern des Zustands:', e);
           }
@@ -691,6 +708,9 @@ saveProfilesToStorage();
           renderAvailability();
           renderTopicsConfig();
           updatePrevPlanUI();
+		  renderPreferenceSelectors();
+		  renderPreferenceList();
+
 
           // Profil-Anzeige aktualisieren
           updateProfileDisplay();
@@ -1176,6 +1196,7 @@ renderConflictList();
           renderPersonsList();
           renderAvailability();
 		  renderConflictSelectors();
+		  renderPreferenceSelectors();
           saveState();
         }
         function addAllImportedNames() {
@@ -1347,7 +1368,50 @@ function renderConflictList() {
     box.appendChild(row);
   });
 }
+function preferenceExists(a, b) {
+  return preferences.some(p =>
+    (p.a === a && p.b === b) || (p.a === b && p.b === a)
+  );
+}
 
+function renderPreferenceSelectors() {
+  const a = el('prefPersonA');
+  const b = el('prefPersonB');
+  if (!a || !b) return;
+  a.innerHTML = '';
+  b.innerHTML = '';
+  persons.forEach(p => {
+    a.append(new Option(p.name, p.id));
+    b.append(new Option(p.name, p.id));
+  });
+}
+
+function renderPreferenceList() {
+  const box = el('preferenceList');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!preferences.length) {
+    box.innerHTML = '<div class="muted">Keine Bevorzugtregeln definiert.</div>';
+    return;
+  }
+  preferences.forEach((p, i) => {
+    const pa = persons.find(x => x.id === p.a)?.name || '?';
+    const pb = persons.find(x => x.id === p.b)?.name || '?';
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<strong>${pa}</strong> ↔ <strong>${pb}</strong>`;
+    const del = document.createElement('button');
+    del.className = 'ghost';
+    del.textContent = 'Entfernen';
+    del.onclick = () => {
+      preferences.splice(i, 1);
+      saveState();
+      renderPreferenceList();
+    };
+    row.appendChild(del);
+    box.appendChild(row);
+  });
+}
 /* === HIER ENDET PUNKT 4 === */
 
         function renderWeekdayCheckboxes(container, preselect = [], labelOverrides = {}, allowedDays = null) {
@@ -1664,8 +1728,10 @@ function renderConflictList() {
   el('step3').classList.remove('hidden');
 
   renderAvailability();
-  renderConflictSelectors();   // ✅ HIER
-  renderConflictList();        // ✅ HIER
+  renderConflictSelectors();   
+  renderConflictList();
+  renderPreferenceSelectors();
+  renderPreferenceList();
 });
          
           renderCsvNamesList();
@@ -1709,7 +1775,9 @@ function renderConflictList() {
           });
           renderAvailability();
 		  renderConflictSelectors();
-renderConflictList();
+		  renderConflictList();
+		  renderPreferenceSelectors();
+		  renderPreferenceList();
 
 el('addConflictBtn')?.addEventListener('click', () => {
   const a = el('conflictPersonA').value;
@@ -1718,6 +1786,14 @@ el('addConflictBtn')?.addEventListener('click', () => {
   conflicts.push({ a, b });
   saveState();
   renderConflictList();
+});
+el('addPrefBtn')?.addEventListener('click', () => {
+  const a = el('prefPersonA').value;
+  const b = el('prefPersonB').value;
+  if (!a || !b || a === b || preferenceExists(a, b)) return;
+  preferences.push({ a, b });
+  saveState();
+  renderPreferenceList();
 });
         }
 
@@ -1916,6 +1992,9 @@ el('addConflictBtn')?.addEventListener('click', () => {
           });
           selectEl.value = sorted[sorted.length - 1].id;
         }
+		renderPreferenceSelectors();
+renderPreferenceList();
+
 
         function initStep4() {
           el('back3').addEventListener('click', () => {
@@ -2020,16 +2099,28 @@ el('addConflictBtn')?.addEventListener('click', () => {
 return canDay && notBlocked && roleAllowed && notUsedYet && noConflict;
               });
               cands.sort((a, b) => {
-                const tA = totalCount[a.id] || 0,
-                  tB = totalCount[b.id] || 0;
-                if (tA !== tB) return tA - tB;
-                const mA = monthlyCount[monthKey][a.id] || 0,
-                  mB = monthlyCount[monthKey][b.id] || 0;
-                if (mA !== mB) return mA - mB;
-                const rA = roleCounts[role][a.id] || 0,
-                  rB = roleCounts[role][b.id] || 0;
-                return rA - rB;
-              });
+  let tA = totalCount[a.id] || 0;
+  let tB = totalCount[b.id] || 0;
+
+  // ✅ Preferences Bonus
+  preferences.forEach(p => {
+    if (usedIds.has(p.a) && a.id === p.b) tA -= 0.5;
+    if (usedIds.has(p.b) && a.id === p.a) tA -= 0.5;
+
+    if (usedIds.has(p.a) && b.id === p.b) tB -= 0.5;
+    if (usedIds.has(p.b) && b.id === p.a) tB -= 0.5;
+  });
+
+  if (tA !== tB) return tA - tB;
+
+  const mA = monthlyCount[monthKey][a.id] || 0;
+  const mB = monthlyCount[monthKey][b.id] || 0;
+  if (mA !== mB) return mA - mB;
+
+  const rA = roleCounts[role][a.id] || 0;
+  const rB = roleCounts[role][b.id] || 0;
+  return rA - rB;
+});
               let pick = null,
                 note = '';
               if (cands.length) {
@@ -2409,6 +2500,13 @@ if (storedConflicts) {
   try {
     const parsed = JSON.parse(storedConflicts);
     if (Array.isArray(parsed)) conflicts = parsed;
+  } catch {}
+}
+const storedPreferences = lsGet('preferences');
+if (storedPreferences) {
+  try {
+    const parsed = JSON.parse(storedPreferences);
+    if (Array.isArray(parsed)) preferences = parsed;
   } catch {}
 }
 
