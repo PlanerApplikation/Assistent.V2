@@ -2104,13 +2104,21 @@ return canDay && notBlocked && roleAllowed && notUsedYet && noConflict;
   let tB = totalCount[b.id] || 0;
 
   // ✅ Preferences Bonus
-  preferences.forEach(p => {
-    if (usedIds.has(p.a) && a.id === p.b) tA -= 0.5;
-    if (usedIds.has(p.b) && a.id === p.a) tA -= 0.5;
+  const PREFERENCE_WEIGHT = 3; // 🔥 HIER kannst du die Stärke einstellen
 
-    if (usedIds.has(p.a) && b.id === p.b) tB -= 0.5;
-    if (usedIds.has(p.b) && b.id === p.a) tB -= 0.5;
-  });
+preferences.forEach(p => {
+
+  // ✅ Starke Bevorzugung wenn Partner schon drin ist
+  if (usedIds.has(p.a) && a.id === p.b) tA -= PREFERENCE_WEIGHT;
+  if (usedIds.has(p.b) && a.id === p.a) tA -= PREFERENCE_WEIGHT;
+
+  if (usedIds.has(p.a) && b.id === p.b) tB -= PREFERENCE_WEIGHT;
+  if (usedIds.has(p.b) && b.id === p.a) tB -= PREFERENCE_WEIGHT;
+
+  // ✅ Leichter Bonus allgemein (damit sie sich eher finden)
+  if (p.a === a.id || p.b === a.id) tA -= PREFERENCE_WEIGHT * 0.5;
+  if (p.a === b.id || p.b === b.id) tB -= PREFERENCE_WEIGHT * 0.5;
+});
 
   if (tA !== tB) return tA - tB;
 
