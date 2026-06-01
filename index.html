@@ -421,6 +421,7 @@
           <div class="foot">
             <!-- Button links: Plan neu erstellen -->
             <button type="button" class="ghost" id="restartBtn">Plan neu erstellen</button>
+			<button type="button" class="primary" id="rerollBtn">Neu generieren</button>
 
             <div class="toolbar">
               <button type="button" class="success" id="exportPdfBtn" onclick="window.print()">Als PDF exportieren</button>
@@ -2700,7 +2701,16 @@ document.getElementById('importProfileCsv')?.addEventListener('change', e => {
           el('result').classList.add('hidden');
           el('step1').classList.remove('hidden');
           window.scrollTo({ top: 0, behavior: 'smooth' });
+		  
         });
+		el('rerollBtn')?.addEventListener('click', () => {
+  try {
+    generatePlan();   // 🔥 Plan einfach neu berechnen
+  } catch (e) {
+    console.error(e);
+    alert('Fehler beim Neu-Ausrollen');
+  }
+});
         if (pngBtn && typeof html2canvas === 'function') {
           pngBtn.addEventListener('click', () => {
             const target = el('resultCards');
