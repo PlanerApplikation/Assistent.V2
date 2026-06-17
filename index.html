@@ -184,6 +184,9 @@
       #printHeader{display:flex!important;position:static!important;height:10mm;padding:2mm 10mm;background:#f0f0f0;color:#333;font-weight:600;font-size:11pt;border-bottom:1px solid #ccc;align-items:center;justify-content:space-between;box-sizing:border-box;z-index:9999;margin-bottom:4mm}
       #printHeader .ph-center{flex:1;text-align:center}
       #printHeader .ph-right{text-align:right;font-size:9pt}
+	  .no-print {
+  display: none !important;
+}
     }
   </style>
 </head>
@@ -344,23 +347,26 @@
           </div>
 		  <div class="card stack">
   <label><strong>Konfliktregeln</strong></label>
+  <div class="card stack">
+  <label><strong>Teams</strong></label>
+  <div class="small muted">
+    Diese Personen werden NUR gemeinsam eingeplant.
+  </div>
+
+  <div class="row">
+    <select id="teamPersonA"></select>
+    <select id="teamPersonB"></select>
+    <button type="button" class="primary" id="addTeamBtn">
+      Team hinzufügen
+    </button>
+  </div>
+
+  <div id="teamList" class="list"></div>
+</div>
   <div class="small muted">
     Diese Personen werden niemals gemeinsam an einem Termin eingeplant.
   </div>
-  <div class="card stack">
-  <label><strong>Bevorzugtregeln</strong></label>
-  <div class="small muted">
-    Diese Personen werden – wenn möglich – gemeinsam eingeplant.
-  </div>
-  <div class="row">
-    <select id="prefPersonA"></select>
-    <select id="prefPersonB"></select>
-    <button type="button" class="primary" id="addPrefBtn">
-      Bevorzugung hinzufügen
-    </button>
-  </div>
-  <div id="preferenceList" class="list"></div>
-</div>
+  
   <div class="row">
     <select id="conflictPersonA"></select>
     <select id="conflictPersonB"></select>
@@ -418,6 +424,14 @@
 
         <div class="card stack hidden" id="result">
           <div id="resultCards"></div>
+		  <div id="statsWrapper" class="card stack no-print">
+  <details>
+    <summary style="cursor:pointer;font-weight:600">
+      📊 Statistik anzeigen
+    </summary>
+    <div id="statsBox" class="stack" style="margin-top:10px"></div>
+  </details>
+</div>
           <div class="foot">
             <!-- Button links: Plan neu erstellen -->
             <button type="button" class="ghost" id="restartBtn">Plan neu erstellen</button>
@@ -456,12 +470,12 @@
         const uid = () => Math.random().toString(36).slice(2, 9);
         const el = id => document.getElementById(id);
         const escapeHtml = s =>
-          String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+  String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
         const normalizeForCompare = str =>
           (str || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         function hashString(str) {
@@ -478,7 +492,7 @@
         let avail = {};
         let currentPlan = [];
 		let conflicts = [];
-		let preferences = [];
+		let teams = [];
 // [{ a: personId, b: personId }]
 // [{ a: personId, b: personId }]
         let csvNames = [];
@@ -617,7 +631,7 @@ function importConfigFromCsv(file) {
             lsSet('persons', JSON.stringify(st.persons));
             lsSet('avail', JSON.stringify(st.avail));
 			lsSet('conflicts', JSON.stringify(conflicts));
-			lsSet('preferences', JSON.stringify(preferences));
+			lsSet('teams', JSON.stringify(teams));
           } catch (e) {
             console.warn('Fehler beim Speichern des Zustands:', e);
           }
@@ -709,15 +723,18 @@ saveProfilesToStorage();
           renderAvailability();
           renderTopicsConfig();
           updatePrevPlanUI();
-		  renderPreferenceSelectors();
-		  renderPreferenceList();
+		  
 
 
           // Profil-Anzeige aktualisieren
           updateProfileDisplay();
 
           const overlay = document.getElementById('profileOverlay');
-          if (overlay) overlay.classList.add('hidden');
+if (overlay) {
+  overlay.classList.add('hidden');
+  overlay.style.display = 'none'; // ✅ zusätzlich hart ausblenden
+}
+
 
           // Zustand direkt sichern (falls neues Profil ohne Daten)
           saveState();
@@ -747,7 +764,16 @@ saveProfilesToStorage();
               btn.type = 'button';
               btn.className = 'primary';
               btn.textContent = p.name;
-              btn.addEventListener('click', () => selectProfile(p.id));
+              btn.addEventListener('click', () => {
+  selectProfile(p.id);
+
+  // ✅ Overlay DIREKT schließen (unabhängig von Fehlern)
+  const overlay = document.getElementById('profileOverlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+    overlay.style.display = 'none';
+  }
+});
               const del = document.createElement('button');
               del.type = 'button';
               del.className = 'warn';
@@ -1171,6 +1197,7 @@ saveProfilesToStorage();
               persons = persons.filter(x => x.id !== p.id);
 			  conflicts = conflicts.filter(c => c.a !== p.id && c.b !== p.id);
 renderConflictSelectors();
+renderTeamSelectors();
 renderConflictList();
 
               delete avail[p.id];
@@ -1197,7 +1224,7 @@ renderConflictList();
           renderPersonsList();
           renderAvailability();
 		  renderConflictSelectors();
-		  renderPreferenceSelectors();
+		  renderTeamSelectors();
           saveState();
         }
         function addAllImportedNames() {
@@ -1230,7 +1257,7 @@ renderConflictList();
             ? `Alle importierten Namen hinzufügen (${toAdd.length})`
             : 'Alle importierten Namen hinzugefügt (✔)';
         }
-        function renderAvailability() {
+        function renderAvailability() { 
           const wrap = el('availabilityWrap');
           if (!wrap) return;
           wrap.innerHTML = '';
@@ -1274,54 +1301,69 @@ renderConflictList();
             });
             wkPreset.append(bAll, bNone);
 
-            // Rollen
-            const rlLabel = document.createElement('label');
-            rlLabel.innerHTML =
-              '<strong>Rollen, die diese Person übernehmen kann</strong> (leer = alle Rollen möglich)';
-            const rlWrap = document.createElement('div');
-            rlWrap.id = `roles-${p.id}`;
-            renderRoleCheckboxes(rlWrap, range.roles, [...avail[p.id].roles]);
+            // ✅ Rollen (einfach – ohne einklappen)
+const rlLabel = document.createElement('label');
+rlLabel.innerHTML = '<strong>Rollen</strong>';
 
-            const uaLabel = document.createElement('label');
-            uaLabel.innerHTML =
-              '<strong>Sperrtermine</strong> (an diesen Tagen kann diese Person <u>nicht</u> eingesetzt werden)';
-            const uaInfo = document.createElement('div');
-            uaInfo.className = 'small muted';
-            uaInfo.textContent = 'Häkchen gesetzt = gesperrt';
-            const uaList = document.createElement('div');
-            uaList.className = 'list';
-            if (!allDates.length) {
-              uaList.innerHTML =
-                '<div class="muted">Keine Termine im Zeitraum – bitte in Schritt 1 prüfen.</div>';
-            } else {
-              allDates.forEach(dateISO => {
-                const d = parseISO(dateISO);
-                const row = document.createElement('div');
-                row.className = 'row';
-                row.style.alignItems = 'center';
-                const inputId = `ua-${p.id}-${dateISO}`;
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.id = inputId;
-                cb.value = dateISO;
-                cb.checked = avail[p.id].unavail.has(dateISO);
-                cb.addEventListener('change', () => {
-                  if (cb.checked) avail[p.id].unavail.add(dateISO);
-                  else avail[p.id].unavail.delete(dateISO);
-                  saveState();
-                });
-                const lab = document.createElement('label');
-                lab.setAttribute('for', inputId);
-                lab.textContent = `${fmtDe.format(d)} (${wdFull(d.getDay())})`;
-                row.append(cb, lab);
-                uaList.appendChild(row);
-              });
-            }
-            card.append(h, wkLabel, wkWrap, wkPreset, rlLabel, rlWrap, uaLabel, uaInfo, uaList);
-            wrap.appendChild(card);
-          });
-        }
-		
+const rlWrap = document.createElement('div');
+rlWrap.id = `roles-${p.id}`;
+
+renderRoleCheckboxes(rlWrap, range.roles, [...avail[p.id].roles]);
+
+// ✅ Sperrtermine (FIX)
+const uaDetails = document.createElement('details');
+
+const uaSummary = document.createElement('summary');
+uaSummary.style.cursor = 'pointer';
+uaSummary.innerHTML = '<strong>Sperrtermine anzeigen</strong>';
+
+const uaContainer = document.createElement('div');
+uaContainer.className = 'stack';
+
+const uaList = document.createElement('div');
+uaList.className = 'stack';
+
+if (!allDates.length) {
+  uaList.innerHTML =
+    '<div class="muted">Keine Termine im Zeitraum – bitte in Schritt 1 prüfen.</div>';
+} else {
+  allDates.forEach(dateISO => {
+    const d = parseISO(dateISO);
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = avail[p.id].unavail.has(dateISO);
+    cb.addEventListener('change', () => {
+      if (cb.checked) avail[p.id].unavail.add(dateISO);
+      else avail[p.id].unavail.delete(dateISO);
+      saveState();
+    });
+
+    const lab = document.createElement('label');
+    lab.textContent = `${fmtDe.format(d)} (${wdFull(d.getDay())})`;
+
+    row.append(cb, lab);
+    uaList.appendChild(row);
+  });
+}
+
+uaContainer.appendChild(uaList);
+uaDetails.append(uaSummary, uaContainer);
+card.appendChild(h);
+card.appendChild(wkLabel);
+card.appendChild(wkWrap);
+card.appendChild(wkPreset);
+card.appendChild(rlLabel);
+card.appendChild(rlWrap);
+card.appendChild(uaDetails); // ✅ DAS FEHLT
+
+wrap.appendChild(card);
+
+}); // ✅ beendet persons.forEach
+
+} // ✅ beendet renderAvailability
 
 /* === HIER BEGINNT PUNKT 4 === */
 
@@ -1336,7 +1378,59 @@ function renderConflictSelectors() {
     b.append(new Option(p.name, p.id));
   });
 }
+function renderTeamSelectors() {
+  const a = el('teamPersonA');
+  const b = el('teamPersonB');
+  if (!a || !b) return;
 
+  a.innerHTML = '';
+  b.innerHTML = '';
+
+  persons.forEach(p => {
+    a.append(new Option(p.name, p.id));
+    b.append(new Option(p.name, p.id));
+  });
+}
+
+function teamExists(a, b) {
+  return teams.some(t =>
+    (t.a === a && t.b === b) ||
+    (t.a === b && t.b === a)
+  );
+}
+
+function renderTeamList() {
+  const box = el('teamList');
+  if (!box) return;
+
+  box.innerHTML = '';
+
+  if (!teams.length) {
+    box.innerHTML = '<div class="muted">Keine Teams definiert.</div>';
+    return;
+  }
+
+  teams.forEach((t, i) => {
+    const pa = persons.find(p => p.id === t.a)?.name || '?';
+    const pb = persons.find(p => p.id === t.b)?.name || '?';
+
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<strong>${pa}</strong> + <strong>${pb}</strong>`;
+
+    const del = document.createElement('button');
+    del.className = 'ghost';
+    del.textContent = 'Entfernen';
+    del.onclick = () => {
+      teams.splice(i, 1);
+      saveState();
+      renderTeamList();
+    };
+
+    row.appendChild(del);
+    box.appendChild(row);
+  });
+}
 function conflictExists(a, b) {
   return conflicts.some(c =>
     (c.a === a && c.b === b) || (c.a === b && c.b === a)
@@ -1369,50 +1463,7 @@ function renderConflictList() {
     box.appendChild(row);
   });
 }
-function preferenceExists(a, b) {
-  return preferences.some(p =>
-    (p.a === a && p.b === b) || (p.a === b && p.b === a)
-  );
-}
 
-function renderPreferenceSelectors() {
-  const a = el('prefPersonA');
-  const b = el('prefPersonB');
-  if (!a || !b) return;
-  a.innerHTML = '';
-  b.innerHTML = '';
-  persons.forEach(p => {
-    a.append(new Option(p.name, p.id));
-    b.append(new Option(p.name, p.id));
-  });
-}
-
-function renderPreferenceList() {
-  const box = el('preferenceList');
-  if (!box) return;
-  box.innerHTML = '';
-  if (!preferences.length) {
-    box.innerHTML = '<div class="muted">Keine Bevorzugtregeln definiert.</div>';
-    return;
-  }
-  preferences.forEach((p, i) => {
-    const pa = persons.find(x => x.id === p.a)?.name || '?';
-    const pb = persons.find(x => x.id === p.b)?.name || '?';
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.innerHTML = `<strong>${pa}</strong> ↔ <strong>${pb}</strong>`;
-    const del = document.createElement('button');
-    del.className = 'ghost';
-    del.textContent = 'Entfernen';
-    del.onclick = () => {
-      preferences.splice(i, 1);
-      saveState();
-      renderPreferenceList();
-    };
-    row.appendChild(del);
-    box.appendChild(row);
-  });
-}
 /* === HIER ENDET PUNKT 4 === */
 
         function renderWeekdayCheckboxes(container, preselect = [], labelOverrides = {}, allowedDays = null) {
@@ -1729,10 +1780,11 @@ function renderPreferenceList() {
   el('step3').classList.remove('hidden');
 
   renderAvailability();
-  renderConflictSelectors();   
+  renderConflictSelectors();
+renderTeamSelectors();  
+renderTeamList();
   renderConflictList();
-  renderPreferenceSelectors();
-  renderPreferenceList();
+  
 });
          
           renderCsvNamesList();
@@ -1777,8 +1829,9 @@ function renderPreferenceList() {
           renderAvailability();
 		  renderConflictSelectors();
 		  renderConflictList();
-		  renderPreferenceSelectors();
-		  renderPreferenceList();
+		  renderTeamSelectors();
+renderTeamList();
+		  
 
 el('addConflictBtn')?.addEventListener('click', () => {
   const a = el('conflictPersonA').value;
@@ -1788,14 +1841,17 @@ el('addConflictBtn')?.addEventListener('click', () => {
   saveState();
   renderConflictList();
 });
-el('addPrefBtn')?.addEventListener('click', () => {
-  const a = el('prefPersonA').value;
-  const b = el('prefPersonB').value;
-  if (!a || !b || a === b || preferenceExists(a, b)) return;
-  preferences.push({ a, b });
+el('addTeamBtn')?.addEventListener('click', () => {
+  const a = el('teamPersonA').value;
+  const b = el('teamPersonB').value;
+
+  if (!a || !b || a === b || teamExists(a, b)) return;
+
+  teams.push({ a, b });
   saveState();
-  renderPreferenceList();
+  renderTeamList();
 });
+
         }
 
         /* --- Terminlisten --- */
@@ -1993,8 +2049,7 @@ el('addPrefBtn')?.addEventListener('click', () => {
           });
           selectEl.value = sorted[sorted.length - 1].id;
         }
-		renderPreferenceSelectors();
-renderPreferenceList();
+		
 
 
         function initStep4() {
@@ -2067,132 +2122,267 @@ renderPreferenceList();
         }
 
         /* --- Faire Zuteilung & Historie --- */
-        function assignFair(eventDates) {
-          currentPlan = [];
-          const roles = range.roles || [];
-          const totalCount = Object.fromEntries(persons.map(p => [p.id, 0]));
-          const monthlyCount = {};
-          const roleCounts = {};
-          roles.forEach(r => (roleCounts[r] = Object.fromEntries(persons.map(p => [p.id, 0]))));
-          for (const dateISO of eventDates) {
-            const key = normDate(dateISO);
-            const d = parseISO(key);
-            const wdIdx = d.getDay();
-            const wdName = wdFull(wdIdx);
-            const monthKey = `${d.getFullYear()}-${d.getMonth() + 1}`;
-            if (!monthlyCount[monthKey])
-              monthlyCount[monthKey] = Object.fromEntries(persons.map(p => [p.id, 0]));
-            const usedIds = new Set();
-            for (const role of roles) {
-              let cands = persons.filter(p => {
-                const a = avail[p.id] || {
-                  weekdays: new Set(),
-                  unavail: new Set(),
-                  roles: new Set()
-                };
-                const canDay = !a.weekdays.size || a.weekdays.has(wdIdx);
-                const notBlocked = !a.unavail.has(key);
-                const roleAllowed = !a.roles.size || a.roles.has(role);
-				const notUsedYet = !usedIds.has(p.id);
-                const noConflict = !Array.from(usedIds).some(uid =>
-  conflictExists(uid, p.id)
-);
-return canDay && notBlocked && roleAllowed && notUsedYet && noConflict;
-              });
-              cands.sort((a, b) => {
-  let tA = totalCount[a.id] || 0;
-  let tB = totalCount[b.id] || 0;
+		function getTeamPartner(id) {
+  const t = teams.find(x => x.a === id || x.b === id);
+  if (!t) return null;
+  return t.a === id ? t.b : t.a;
+}
+        
+function assignFair(eventDates){
+  currentPlan = [];
 
-  // ✅ Preferences Bonus
-  const PREFERENCE_WEIGHT = 3; // 🔥 HIER kannst du die Stärke einstellen
+  const roles = range.roles || [];
+  const totalCount = Object.fromEntries(persons.map(p => [p.id,0]));
+  const monthlyCount = {};
+  const roleCounts = {};
 
-preferences.forEach(p => {
+  roles.forEach(r=>{
+    roleCounts[r] = Object.fromEntries(persons.map(p=>[p.id,0]));
+  });
 
-  // ✅ Starke Bevorzugung wenn Partner schon drin ist
-  if (usedIds.has(p.a) && a.id === p.b) tA -= PREFERENCE_WEIGHT;
-  if (usedIds.has(p.b) && a.id === p.a) tA -= PREFERENCE_WEIGHT;
+  for(const dateISO of eventDates){
+  const roleUsage = {};
+roles.forEach(r => roleUsage[r] = 0);
 
-  if (usedIds.has(p.a) && b.id === p.b) tB -= PREFERENCE_WEIGHT;
-  if (usedIds.has(p.b) && b.id === p.a) tB -= PREFERENCE_WEIGHT;
+    const monthKey = "m"; // simplified
+    if(!monthlyCount[monthKey]){
+      monthlyCount[monthKey] = Object.fromEntries(persons.map(p=>[p.id,0]));
+    }
 
-  // ✅ Leichter Bonus allgemein (damit sie sich eher finden)
-  if (p.a === a.id || p.b === a.id) tA -= PREFERENCE_WEIGHT * 0.5;
-  if (p.a === b.id || p.b === b.id) tB -= PREFERENCE_WEIGHT * 0.5;
+    const usedIds = new Set();
+
+    for (let i = 0; i < roles.length; i++) {
+
+  const role = roles[i];
+  // ❗ Rolle wurde schon vergeben → skippen
+if (roleUsage[role] > 0) continue;
+
+
+      let cands = persons.filter(p=>{
+        const a = avail[p.id] || {weekdays:new Set(), unavail:new Set(), roles:new Set()};
+        const partnerId = getTeamPartner(p.id);
+
+        const canDay = !a.weekdays.size || a.weekdays.has(0);
+        const notBlocked = !a.unavail.has(dateISO);
+        const roleAllowed = !a.roles.size || a.roles.has(role);
+        const notUsedYet = !usedIds.has(p.id);
+		
+if (usedIds.has(p.id)) return false;
+  if (partnerId && usedIds.has(partnerId)) return false;
+
+
+
+// 🔥 Konflikte für Person UND Team prüfen
+const noConflict = !Array.from(usedIds).some(uid => {
+
+  // Konflikt mit Person selbst
+  if (conflictExists(uid, p.id)) return true;
+
+  // Konflikt mit Team-Partner
+  if (partnerId && conflictExists(uid, partnerId)) return true;
+
+  return false;
+});
+// 🔥 Team darf keinen internen Konflikt haben
+if (partnerId && conflictExists(p.id, partnerId)) {
+  return false;
+}
+
+        if (partnerId) {
+  const partner = persons.find(pp => pp.id === partnerId);
+  const ap = avail[partnerId];
+
+  if (!partner || !ap) return false;
+
+  const partnerFree = !usedIds.has(partnerId);
+  const partnerNotBlocked = !ap.unavail.has(dateISO);
+
+  // 🔥 WICHTIG: Partner muss IRGENDEINE Rolle können (nicht diese!)
+  const partnerCanDoAnyRole =
+    !ap.roles.size || range.roles.some(r => ap.roles.has(r));
+
+  if (!partnerFree || !partnerNotBlocked || !partnerCanDoAnyRole) {
+    return false;
+  }
+}
+
+
+        return canDay && notBlocked && roleAllowed && notUsedYet && noConflict;
+      });
+
+      cands.sort((a,b)=>{
+  let tA = totalCount[a.id];
+  let tB = totalCount[b.id];
+
+  if(getTeamPartner(a.id)) tA += 2;
+  if(getTeamPartner(b.id)) tB += 2;
+
+  if(tA !== tB) return tA - tB;
+
+  let mA = monthlyCount[monthKey][a.id];
+  let mB = monthlyCount[monthKey][b.id];
+  if(mA !== mB) return mA - mB;
+
+  let rA = roleCounts[role][a.id];
+  let rB = roleCounts[role][b.id];
+  if(rA !== rB) return rA - rB;
+
+  // ✅ NEU: Zufällige Entscheidung
+  return Math.random() - 0.5;
 });
 
-  if (tA !== tB) return tA - tB;
+      let pick = null;
+      let note = "";
 
-  const mA = monthlyCount[monthKey][a.id] || 0;
-  const mB = monthlyCount[monthKey][b.id] || 0;
-  if (mA !== mB) return mA - mB;
+      if (cands.length) {
 
-  const rA = roleCounts[role][a.id] || 0;
-  const rB = roleCounts[role][b.id] || 0;
-  return rA - rB;
+  pick = cands[0];
+  const partnerId = getTeamPartner(pick.id);
+
+  // ✅ TEAM → beide sofort einplanen
+  if (partnerId) {
+
+  const partner = persons.find(p => p.id === partnerId);
+
+  let partnerRoleIndex = -1;
+
+// passende Rolle für Partner suchen
+const ap = avail[partnerId];
+
+for (let j = i + 1; j < roles.length; j++) {
+  const role2 = roles[j];
+
+  const ap = avail[partnerId] || { roles: new Set() };
+
+  const canRole =
+    !ap.roles.size || ap.roles.has(role2);
+
+  const roleStillFree = roleUsage[role2] === 0; // ✅ FIX
+
+  if (canRole && roleStillFree && !usedIds.has(partnerId)) {
+    partnerRoleIndex = j;
+    break;
+  }
+}
+
+  // ❌ keine Rolle für Partner → überspringen
+  if (partnerRoleIndex === -1) {
+  // ❗ NICHTS eintragen
+  // Rolle bleibt absichtlich frei → wird später als "OFFEN" ergänzt
+  continue;
+}
+
+  const role2 = roles[partnerRoleIndex];
+
+  // 🔹 Hauptperson
+  usedIds.add(pick.id);
+  totalCount[pick.id]++;
+  monthlyCount[monthKey][pick.id]++;
+  roleCounts[role][pick.id]++;
+  roleUsage[role]++;
+
+  currentPlan.push({
+    date: dateISO,
+    role: role,
+    personId: pick.id,
+    personName: pick.name,
+    note: "Team"
+  });
+
+  // 🔹 Partner
+  usedIds.add(partnerId);
+  totalCount[partnerId]++;
+  monthlyCount[monthKey][partnerId]++;
+  roleCounts[role2][partnerId]++;
+  roleUsage[role2]++;
+
+  currentPlan.push({
+    date: dateISO,
+    role: role2,
+    personId: partner.id,
+    personName: partner.name,
+    note: "Team"
+  });
+
+  // ✅ zweite Rolle als verbraucht markieren
+roleUsage[role2] = 1;
+
+} else {
+
+    const ap = avail[partnerId];
+
+
+
+
+    // ✅ normale Person
+    usedIds.add(pick.id);
+    totalCount[pick.id]++;
+    monthlyCount[monthKey][pick.id]++;
+    roleCounts[role][pick.id]++;
+	roleUsage[role]++;
+
+    currentPlan.push({
+      date: dateISO,
+      role: role,
+      personId: pick.id,
+      personName: pick.name,
+      note: ""
+    });
+
+  }
+
+} else {
+  currentPlan.push({
+    date: dateISO,
+    role: role,
+    personId: null,
+    personName: "—",
+    note: "Keine Zuweisung möglich"
+  });
+}
+
+    } // ✅ role loop geschlossen
+	// ✅ FEHLENDE ROLLEN ERGÄNZEN
+roles.forEach(r => {
+  if (roleUsage[r] === 0) {
+    currentPlan.push({
+      date: dateISO,
+      role: r,
+      personId: null,
+      personName: "—",
+      note: "OFFEN"
+    });
+  }
 });
-              let pick = null,
-                note = '';
-              if (cands.length) {
-                const first = cands[0];
-                const tFirst = totalCount[first.id] || 0;
-                const mFirst = monthlyCount[monthKey][first.id] || 0;
-                const rFirst = roleCounts[role][first.id] || 0;
-                const tied = cands.filter(c => {
-                  return (
-                    (totalCount[c.id] || 0) === tFirst &&
-                    (monthlyCount[monthKey][c.id] || 0) === mFirst &&
-                    (roleCounts[role][c.id] || 0) === rFirst
-                  );
-                });
-                const randomIndex = Math.floor(Math.random() * tied.length);
-                pick = tied[randomIndex];
-                usedIds.add(pick.id);
-                totalCount[pick.id]++;
-                monthlyCount[monthKey][pick.id]++;
-                roleCounts[role][pick.id]++;
-              } else {
-                note = 'OFFEN';
-              }
-              currentPlan.push({
-                date: key,
-                weekday: wdName,
-                role,
-                personId: pick?.id || null,
-                personName: pick?.name || '',
-                note
-              });
-            }
-          }
-        }
-        function savePlanToHistory() {
-          try {
-            if (typeof localStorage === 'undefined') return;
-            const container = el('resultCards');
-            if (!container) return;
-            const html = container.innerHTML || '';
-            if (!html.trim()) return;
-            const entry = {
-              id: uid(),
-              html,
-              meta: {
-                range: { start: range.start, end: range.end },
-                createdAt: new Date().toISOString(),
-                type: range.type || '',
-                weekdays: [...(range.weekdays || [])],
-                roles: [...(range.roles || [])],
-                profile: currentProfile
-              }
-            };
-            planHistory.push(entry);
-            if (planHistory.length > 15) {
-              planHistory = planHistory.slice(planHistory.length - 15);
-            }
-            lsSet('planHistory', JSON.stringify(planHistory));
-            updatePrevPlanUI();
-          } catch (e) {
-            console.warn('Fehler beim Speichern der Plan-Historie:', e);
-          }
-        }
+  } // ✅ date loop geschlossen
+  // 🔥 TEAM-KONTROLLE (keine halben Teams)
+for (const dateISO of eventDates) {
+
+  const assigned = currentPlan
+    .filter(x => x.date === dateISO && x.personId)
+    .map(x => x.personId);
+
+  const assignedSet = new Set(assigned);
+
+  for (const t of teams) {
+    const aIn = assignedSet.has(t.a);
+    const bIn = assignedSet.has(t.b);
+
+    // ❌ Wenn nur einer drin ist → ungültig
+    if ((aIn && !bIn) || (!aIn && bIn)) {
+      throw new Error("TEAM_BROKEN");
+    }
+  }
+}
+
+} // ✅ FUNKTION sauber geschlossen
+
+
+
+function countOpenSlots(plan) {
+  return plan.filter(p => !p.personId).length;
+}
+
 
         /* --- Plan anzeigen --- */
         function renderPlan() {
@@ -2228,7 +2418,11 @@ preferences.forEach(p => {
                   `<div class="hint"></div>`;
                 card.appendChild(cancelRow);
               } else {
-                const rows = byDate[key] || [];
+                const rows = (byDate[key] || []).slice().sort((a, b) => {
+  const iA = range.roles.indexOf(a.role);
+  const iB = range.roles.indexOf(b.role);
+  return iA - iB;
+});
                 const topics = Array.isArray(range.topicsByDate[key])
                   ? range.topicsByDate[key]
                   : [];
@@ -2241,30 +2435,147 @@ preferences.forEach(p => {
                     `<div class="hint"></div>`;
                   card.appendChild(topicsRow);
                 }
-                rows.forEach(rec => {
-                  const rr = document.createElement('div');
-                  rr.className = 'roleRow roleAssign';
-                  rr.innerHTML =
-                    `<div class="role">${escapeHtml(rec.role)}</div>` +
-                    `<div class="name">${escapeHtml(rec.personName || '—')}</div>` +
-                    `<div class="hint">${escapeHtml(rec.note || '')}</div>`;
-                  card.appendChild(rr);
-                });
+rows.forEach(rec => {
+  const rr = document.createElement('div');
+  rr.className = 'roleRow roleAssign';
+  rr.innerHTML =
+    `<div class="role">${escapeHtml(rec.role)}</div>` +
+    `<div class="name">${escapeHtml(rec.personName || '—')}</div>` +
+    `<div class="hint">${rec.note === "Team" ? "" : escapeHtml(rec.note || '')}</div>`;
+
+  card.appendChild(rr); // ✅ DAS FEHLT!
+});
               }
               container.appendChild(card);
             });
         }
-        function generatePlan() {
-          const events = buildEventDates();
-          if (!events.length && !Object.keys(range.cancelled || {}).length)
-            throw new Error(
-              'Keine Termine im Zeitraum (prüfe Schritt 1 und evtl. Ausfälle in Schritt 4).'
-            );
-          assignFair(events);
-          renderPlan();
-          savePlanToHistory();
-        }
+		function renderStats() {
+  const box = el('statsBox');
+  if (!box) return;
 
+  const counts = {};
+
+  // alle Personen initialisieren
+  persons.forEach(p => counts[p.id] = 0);
+
+  // zählen
+  let openCount = 0;
+
+currentPlan.forEach(entry => {
+  if (entry.personId) {
+    counts[entry.personId]++;
+  } else {
+    openCount++; // ✅ OFFENE zählen
+  }
+});
+
+  // sortieren (meiste zuerst)
+  const sorted = Object.entries(counts)
+    .map(([id, count]) => ({
+      name: persons.find(p => p.id === id)?.name || "Unbekannt",
+      count
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // anzeigen
+ box.innerHTML = "";
+
+  sorted.forEach(s => {
+    const row = document.createElement("div");
+    row.className = "row";
+
+    row.innerHTML = `
+      <div style="flex:1">${escapeHtml(s.name)}</div>
+      <div><strong>${s.count}</strong></div>
+    `;
+
+    box.appendChild(row);
+  });
+  // 🔽 OFFENE Posten anzeigen
+const openRow = document.createElement("div");
+openRow.className = "row";
+openRow.style.marginTop = "8px";
+openRow.style.borderTop = "1px dashed #ccc";
+openRow.style.paddingTop = "6px";
+
+openRow.innerHTML = `
+  <div style="flex:1"><strong>OFFEN</strong></div>
+  <div><strong>${openCount}</strong></div>
+`;
+
+box.appendChild(openRow);
+}
+        function generatePlan() {
+  const events = buildEventDates();
+
+  let bestPlan = null;
+  let bestScore = 9999;
+
+  for (let i = 0; i < 150; i++) {
+
+    try {
+      currentPlan = [];
+      assignFair(events);
+
+      const score = countOpenSlots(currentPlan);
+
+      if (score === 0) {
+        bestPlan = [...currentPlan];
+        break;
+      }
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestPlan = [...currentPlan];
+      }
+
+    } catch (e) {
+      // Fehler ignorieren
+    }
+  }
+
+  currentPlan = bestPlan;
+
+  renderPlan();
+  renderStats();
+  savePlanToHistory();
+}
+		function savePlanToHistory() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+
+    const container = el('resultCards');
+    if (!container) return;
+
+    const html = container.innerHTML || '';
+    if (!html.trim()) return;
+
+    const entry = {
+      id: uid(),
+      html,
+      meta: {
+        range: { start: range.start, end: range.end },
+        createdAt: new Date().toISOString(),
+        type: range.type || '',
+        weekdays: [...(range.weekdays || [])],
+        roles: [...(range.roles || [])],
+        profile: currentProfile
+      }
+    };
+
+    planHistory.push(entry);
+
+    if (planHistory.length > 15) {
+      planHistory = planHistory.slice(planHistory.length - 15);
+    }
+
+    lsSet('planHistory', JSON.stringify(planHistory));
+    updatePrevPlanUI();
+
+  } catch (e) {
+    console.warn('Fehler beim Speichern der Plan-Historie:', e);
+  }
+}
         /* --- Aktuellen sichtbaren Schritt ermitteln --- */
         function getCurrentStepId() {
           if (!el('step1').classList.contains('hidden')) return 'step1';
@@ -2511,13 +2822,14 @@ if (storedConflicts) {
     if (Array.isArray(parsed)) conflicts = parsed;
   } catch {}
 }
-const storedPreferences = lsGet('preferences');
-if (storedPreferences) {
+const storedTeams = lsGet('teams');
+if (storedTeams) {
   try {
-    const parsed = JSON.parse(storedPreferences);
-    if (Array.isArray(parsed)) preferences = parsed;
+    const parsed = JSON.parse(storedTeams);
+    if (Array.isArray(parsed)) teams = parsed;
   } catch {}
 }
+
 
             // Personen-CSV (profil-spezifisch, Migration von altem globalen Key)
             let storedPersonsCsv = lsGet('personsCsvText');
