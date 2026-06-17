@@ -172,6 +172,18 @@
       .steps{display:block!important}
       .stack{display:block!important}
       .row{display:block!important}
+	  
+#rerollBtn {
+  display: none !important;
+}
+
+#restartBtn {
+  display: none !important;
+}
+
+
+
+
       #result{border:none!important;box-shadow:none!important;padding:0!important;margin:0!important}
       #resultCards{display:block!important;margin:0 10mm!important;padding:0!important}
       @page{size:A4;margin:10mm}
@@ -199,11 +211,26 @@
 
       <div id="profileList" class="profile-list"></div>
 <div class="profile-add">
-  <label class="small">Profil aus CSV importieren</label>
-  <input type="file" id="importProfileCsv" accept=".csv,text/csv" />
-  <div class="small muted">
-    Importiert eine komplette Konfiguration (Personen, Rollen, Verfügbarkeit, Themen, Konflikte)
-  </div>
+
+  <details>
+    <summary style="cursor:pointer;font-weight:600">
+      📥 Profil importieren
+    </summary>
+
+    <div style="margin-top:10px" class="stack">
+      
+      <label class="small">Profil aus CSV importieren</label>
+
+      <input type="file" id="importProfileCsv" accept=".csv,text/csv" />
+
+      <div class="small muted">
+        Importiert eine komplette Konfiguration (Personen, Rollen, Verfügbarkeit, Themen, Konflikte)
+      </div>
+
+    </div>
+
+  </details>
+
 </div>
       <div class="profile-add">
         <label class="small" for="profileNameInput">Neues Profil anlegen</label>
@@ -269,13 +296,28 @@
               <input id="roleName" type="text" placeholder="Neue Rolle (z. B. Lektion, Helfer, Basteln)" />
               <button type="button" id="addRole" class="primary">Rolle hinzufügen</button>
             </div>
-            <div class="row">
-              <label><strong>Rollen per CSV importieren</strong></label>
-            </div>
-            <div class="row">
-              <input type="file" id="rolesCsvFile" accept=".csv,text/csv" />
-            </div>
-            <div class="small muted" id="rolesCsvInfo"></div>
+<div class="stack">
+
+  <details>
+    <summary style="cursor:pointer;font-weight:600">
+      📥 Rollen importieren
+    </summary>
+
+    <div class="stack" style="margin-top:10px">
+
+      <label><strong>Rollen per CSV importieren</strong></label>
+
+      <div class="row">
+        <input type="file" id="rolesCsvFile" accept=".csv,text/csv" />
+      </div>
+
+      <div class="small muted" id="rolesCsvInfo"></div>
+
+    </div>
+  </details>
+
+</div>
+
             <div class="stack">
               <label><strong>Importierte Rollen (anklicken zum Hinzufügen)</strong></label>
               <div id="rolesImportedList" class="list"></div>
@@ -313,12 +355,26 @@
             </div>
           </div>
           <div class="stack">
-            <label><strong>CSV lokal importieren</strong> (je Zeile ein Name oder erste Spalte)</label>
-            <div class="row">
-              <input type="file" id="csvLocalFile" accept=".csv,text/csv" />
-            </div>
-            <div class="small muted" id="csvLocalInfo"></div>
-          </div>
+
+  <details>
+    <summary style="cursor:pointer;font-weight:600">
+      📥 Personen importieren
+    </summary>
+
+    <div class="stack" style="margin-top:10px">
+
+      <label><strong>CSV lokal importieren</strong></label>
+
+      <div class="row">
+        <input type="file" id="csvLocalFile" accept=".csv,text/csv" />
+      </div>
+
+      <div class="small muted" id="csvLocalInfo"></div>
+
+    </div>
+  </details>
+
+</div>
           <div class="stack">
             <label><strong>Importierte Namen (anklicken zum Hinzufügen)</strong></label>
             <div id="csvNamesList" class="list"></div>
@@ -346,36 +402,60 @@
             <button type="button" class="ghost" id="wkAllPersons">Alle Tage für alle Personen</button>
           </div>
 		  <div class="card stack">
-  <label><strong>Konfliktregeln</strong></label>
-  <div class="card stack">
-  <label><strong>Teams</strong></label>
-  <div class="small muted">
-    Diese Personen werden NUR gemeinsam eingeplant.
-  </div>
 
-  <div class="row">
-    <select id="teamPersonA"></select>
-    <select id="teamPersonB"></select>
-    <button type="button" class="primary" id="addTeamBtn">
-      Team hinzufügen
-    </button>
-  </div>
+  <details>
+    <summary style="cursor:pointer;font-weight:600">
+      ⚠️ Konflikt/Teamregeln anzeigen
+    </summary>
 
-  <div id="teamList" class="list"></div>
+    <div class="stack" style="margin-top:10px">
+
+      <!-- ✅ TEAMS -->
+      <div class="card stack">
+        <label><strong>Teams</strong></label>
+
+        <div class="small muted">
+          Diese Personen werden NUR gemeinsam eingeplant.
+        </div>
+
+        <div class="row">
+          <select id="teamPersonA"></select>
+          <select id="teamPersonB"></select>
+
+          <button type="button" class="primary" id="addTeamBtn">
+            Team hinzufügen
+          </button>
+        </div>
+
+        <div id="teamList" class="list"></div>
+      </div>
+
+      <!-- ✅ KONFLIKTE -->
+      <div class="card stack">
+        <label><strong>Konflikte</strong></label>
+
+        <div class="small muted">
+          Diese Personen werden niemals gemeinsam eingeplant.
+        </div>
+
+        <div class="row">
+          <select id="conflictPersonA"></select>
+          <select id="conflictPersonB"></select>
+
+          <button type="button" class="primary" id="addConflictBtn">
+            Konflikt hinzufügen
+          </button>
+        </div>
+
+        <div id="conflictList" class="list"></div>
+      </div>
+
+    </div>
+  </details>
+
 </div>
-  <div class="small muted">
-    Diese Personen werden niemals gemeinsam an einem Termin eingeplant.
-  </div>
-  
-  <div class="row">
-    <select id="conflictPersonA"></select>
-    <select id="conflictPersonB"></select>
-    <button type="button" class="primary" id="addConflictBtn">
-      Konflikt hinzufügen
-    </button>
-  </div>
-  <div id="conflictList" class="list"></div>
-</div>
+
+ 
           <div id="availabilityWrap" class="stack"></div>
           <div class="foot">
             <button type="button" class="ghost" id="back2">Zurück</button>
@@ -391,26 +471,55 @@
           <div class="small muted">Für jeden Termin im Zeitraum eigene Themen festlegen. Wenn ein Termin (z. B. Sonntag) ausfällt, kannst du ihn hier markieren und einen Grund eintragen.</div>
 
           <div class="card stack">
-            <label><strong>Themen‑Katalog (CSV import)</strong> – die importierten Themen erscheinen als Vorschläge in den Suchfeldern unten.</label>
-            <div class="row">
-              <input type="file" id="topicsCsvFile" accept=".csv,text/csv" />
-            </div>
-            <div class="small muted" id="topicsCsvInfo"></div>
-          </div>
+  <details>
+    <summary style="cursor:pointer;font-weight:600">
+      📚 Themen‑Katalog anzeigen
+    </summary>
+
+    <div style="margin-top:10px" class="stack">
+      <label><strong>Themen‑Katalog (CSV import)</strong></label>
+
+      <div class="row">
+        <input type="file" id="topicsCsvFile" accept=".csv,text/csv" />
+      </div>
+
+      <div class="small muted" id="topicsCsvInfo"></div>
+    </div>
+  </details>
+</div>
+
 
           <div class="card stack" id="prevPlanCard">
-            <label><strong>Vorherige Pläne</strong></label>
-            <div id="prevPlanInfo" class="small muted"></div>
-            <div class="row">
-              <label class="small">Gespeicherte Pläne:
-                <select id="prevPlanSelect"></select>
-              </label>
-              <button type="button" class="ghost" id="showPrevPlanBtn">Vorherigen Plan anzeigen</button>
-            </div>
-            <!-- Dieser Container bleibt bestehen, wird aber nicht mehr direkt im Schritt angezeigt,
-                 sondern die Pläne erscheinen im Vollbild-Overlay -->
-            <div id="prevPlanContent" class="list hidden"></div>
-          </div>
+
+  <details>
+    <summary style="cursor:pointer;font-weight:600">
+      📂 Vorherige Pläne anzeigen
+    </summary>
+
+    <div class="stack" style="margin-top:10px">
+
+      <label><strong>Vorherige Pläne</strong></label>
+
+      <div id="prevPlanInfo" class="small muted"></div>
+
+      <div class="row">
+        <label class="small">
+          Gespeicherte Pläne:
+          <select id="prevPlanSelect"></select>
+        </label>
+
+        <button type="button" class="ghost" id="showPrevPlanBtn">
+          Vorherigen Plan anzeigen
+        </button>
+      </div>
+
+      <!-- bleibt versteckt, Overlay nutzt das -->
+      <div id="prevPlanContent" class="list hidden"></div>
+
+    </div>
+  </details>
+
+</div>
 
           <div id="topicsWrap" class="stack"></div>
           <div class="foot">
